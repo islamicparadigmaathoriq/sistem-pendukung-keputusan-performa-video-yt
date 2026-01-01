@@ -148,7 +148,7 @@ with st.sidebar:
         st.error("⚠️ Total bobot tidak 1.0! Harap sesuaikan.")
     
     st.divider()
-    st.caption("(Islamic Paradigma AThoriq - 2026")
+    st.caption("Islamic Paradigma AThoriq - 2026")
 
 # --- MAIN CONTENT ---
 st.title("📈 SPK Penentuan Waktu Unggah YouTube")
@@ -326,4 +326,5 @@ with tab4:
             st.plotly_chart(fig, use_container_width=True)
             
     else:
+
         st.warning("⚠️ Data belum tersedia. Silakan ambil data di **Tab 2** terlebih dahulu.")
