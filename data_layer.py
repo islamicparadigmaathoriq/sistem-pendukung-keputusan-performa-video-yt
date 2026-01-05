@@ -145,7 +145,73 @@ class DataManager:
             return results[:limit] # Kembalikan maksimal 5
         except:
             return []
-
+#==========================================================
+#KATEGORISASI CHANNEL
+#==========================================================
+def categorize_channel(self, channel_info):
+    """
+    Kategorikan channel berdasarkan subscribers dan performa
+    Returns: dict dengan kategori, level, dan benchmark
+    """
+    stats = channel_info.get('statistics', {})
+    subs = int(stats.get('subscriberCount', 0))
+    total_videos = int(stats.get('videoCount', 0))
+    total_views = int(stats.get('viewCount', 0))
+    
+    # Hitung average views per video
+    avg_views = total_views / total_videos if total_videos > 0 else 0
+    
+    # Kriteria Kategorisasi
+    if subs < 10000:
+        category = "🌱 Pemula (Beginner)"
+        level = "pemula"
+        color = "#6c757d"  # Abu-abu
+        benchmark = {
+            'subs_target': '10K subscribers',
+            'focus': 'Konsistensi upload, niche yang jelas, SEO dasar',
+            'challenge': 'Membangun audience awal, menemukan gaya konten',
+            'strategy': 'Upload rutin (2-3x/minggu), riset keyword, kolaborasi micro-influencer'
+        }
+    elif subs < 100000:
+        category = "🚀 Menengah (Intermediate)"
+        level = "menengah"
+        color = "#0dcaf0"  # Cyan
+        benchmark = {
+            'subs_target': '100K subscribers',
+            'focus': 'Engagement rate, kualitas produksi, branding',
+            'challenge': 'Meningkatkan retention, monetisasi, scaling content',
+            'strategy': 'Optimalkan CTR & AVD, diversifikasi konten, sponsorship'
+        }
+    elif subs < 1000000:
+        category = "⭐ Mapan (Established)"
+        level = "mapan"
+        color = "#ffc107"  # Kuning/Gold
+        benchmark = {
+            'subs_target': '1M subscribers (Gold Button)',
+            'focus': 'Skalabilitas, tim produksi, multiple revenue streams',
+            'challenge': 'Mempertahankan growth, kompetisi ketat, burnout',
+            'strategy': 'Professional production, merchandise, komunitas loyal'
+        }
+    else:
+        category = "💎 Profesional (Pro/Celebrity)"
+        level = "profesional"
+        color = "#dc3545"  # Merah
+        benchmark = {
+            'subs_target': 'Maintain & grow beyond 1M',
+            'focus': 'Brand deals, media exposure, viral content',
+            'challenge': 'Inovasi konten, stay relevant, manajemen tim besar',
+            'strategy': 'Multi-platform presence, exclusive content, big collaborations'
+        }
+    
+    return {
+        'category': category,
+        'level': level,
+        'color': color,
+        'subs': subs,
+        'avg_views': avg_views,
+        'total_videos': total_videos,
+        'benchmark': benchmark
+    }
 #==========================================================
 #Fungsi Analisis Video
 #==========================================================
@@ -208,4 +274,5 @@ class DataManager:
             return pd.DataFrame(videos)
         except:
             return pd.DataFrame()
+
 
