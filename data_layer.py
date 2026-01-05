@@ -6,7 +6,6 @@ class DataManager:
     def __init__(self, api_key):
         self.api_key = api_key
         self.youtube = None
-        # Inisialisasi Counter Kuota (Estimasi)
         self.used_quota = 0 
         
         if self.api_key:
@@ -26,82 +25,100 @@ class DataManager:
         """Mencari channel berdasarkan nama"""
         if not self.youtube: return []
         try:
-            # SEARCH COST: 100 Units per call
             self.used_quota += 100 
-            
+            request = self.youtube.search().list(
+                part="snippet", q=query, type="channel", maxResults=limit
+            )
+            response = request.execute()
+            results = []
+            for item in response['items']:
+                thumb = item['snippet']['thumbnails'].get('high', {}).get('url') or "https://via.placeholder.com/150"
+                results.append({
+                    'channel_id': item['snippet']['channelId'],
+                    'title': item['snippet']['title'],
+                    'description': item['snippet']['description'],
+                    'thumbnail': thumb, 
+                    'publish_time': item['snippet']['publishedAt']
+                })
+            return results
+        except:
+            return []
+
+    # --- [CARI KOMPETITOR BERDASARKAN NICHE] ---
+    def search_competitors_by_niche(self, niche_keyword, exclude_channel_id, limit=5):
+        """Mencari 5 channel lain berdasarkan niche/topik"""
+        if not self.youtube: return []
+        
+        # Bersihkan keyword (misal: "Gaming (Indonesia)" -> "Gaming Indonesia")
+        clean_query = niche_keyword.replace("(", "").replace(")", "")
+        
+        try:
+            self.used_quota += 100
             request = self.youtube.search().list(
                 part="snippet",
-                q=query,
+                q=clean_query, # Cari berdasarkan topik
                 type="channel",
-                maxResults=limit
+                order="viewCount", # Cari yang populer
+                maxResults=limit + 1 # Ambil lebih 1 untuk jaga-jaga kalau ada channel utama
             )
             response = request.execute()
             
             results = []
             for item in response['items']:
-                snippet = item['snippet']
-                thumbnails = snippet.get('thumbnails', {})
-                thumb_url = thumbnails.get('high', {}).get('url') or \
-                            thumbnails.get('medium', {}).get('url') or \
-                            thumbnails.get('default', {}).get('url') or \
-                            "https://via.placeholder.com/150"
-
-                results.append({
-                    'channel_id': item['snippet']['channelId'],
-                    'title': item['snippet']['title'],
-                    'description': item['snippet']['description'],
-                    'thumbnail': thumb_url, 
-                    'publish_time': item['snippet']['publishedAt']
-                })
-            return results
-        except Exception as e:
+                cid = item['snippet']['channelId']
+                # Jangan masukkan channel utama ke daftar kompetitor
+                if cid != exclude_channel_id:
+                    thumb = item['snippet']['thumbnails'].get('default', {}).get('url')
+                    results.append({
+                        'channel_id': cid,
+                        'title': item['snippet']['title'],
+                        'thumbnail': thumb
+                    })
+            return results[:limit] # Kembalikan maksimal 5
+        except:
             return []
+    # -------------------------------------------------------
 
     def _detect_niche(self, channel_item):
         """Deteksi Niche + Geografi"""
         topics = channel_item.get('topicDetails', {}).get('topicCategories', [])
         text = (channel_item['snippet']['title'] + " " + channel_item['snippet']['description']).lower()
         
-        base_niche = "Umum / Campuran"
+        base_niche = "Umum"
         geo_tag = ""
 
         # 1. Geografi
-        if any(x in text for x in ['j-pop', 'jpop', 'japanese', 'japan', 'anime', 'tokyo', 'vtuber']): geo_tag = "(Jepang)"
-        elif any(x in text for x in ['k-pop', 'kpop', 'korea', 'seoul', 'drakor', 'mv']): geo_tag = "(Korea)"
-        elif any(x in text for x in ['indonesia', 'indo', 'dangdut', 'koplo', 'jakarta', 'official video']): geo_tag = "(Indonesia)"
-        elif any(x in text for x in ['usa', 'us', 'uk', 'western', 'hollywood', 'vevo']): geo_tag = "(Barat)"
+        if any(x in text for x in ['j-pop', 'jpop', 'japanese', 'japan', 'anime']): geo_tag = "(Jepang)"
+        elif any(x in text for x in ['k-pop', 'kpop', 'korea', 'drakor']): geo_tag = "(Korea)"
+        elif any(x in text for x in ['indonesia', 'indo', 'jakarta']): geo_tag = "(Indonesia)"
 
         # 2. Topik
         niche_map = {
             'Technology': 'Teknologi', 'Gaming': 'Gaming',
             'Lifestyle': 'Vlog & Lifestyle', 'Entertainment': 'Hiburan',
-            'Music': 'Musik', 'Knowledge': 'Edukasi', 'Sport': 'Olahraga',
-            'Food': 'Kuliner', 'Fashion': 'Fashion'
+            'Music': 'Musik', 'Sport': 'Olahraga', 'Food': 'Kuliner'
         }
         
-        found_topic = False
+        found = False
         for url in topics:
             for key, label in niche_map.items():
                 if key in url: 
-                    base_niche = label
-                    found_topic = True
-                    break
-            if found_topic: break
+                    base_niche = label; found = True; break
+            if found: break
         
-        if not found_topic:
-            if any(x in text for x in ['game', 'play', 'esport', 'minecraft']): base_niche = "Gaming"
-            elif any(x in text for x in ['gadget', 'review', 'tech', 'hp']): base_niche = "Teknologi"
-            elif any(x in text for x in ['song', 'music', 'cover', 'lirik']): base_niche = "Musik"
+        if not found:
+            if any(x in text for x in ['game', 'play', 'esport']): base_niche = "Gaming"
+            elif any(x in text for x in ['gadget', 'review', 'tech']): base_niche = "Teknologi"
+            elif any(x in text for x in ['song', 'music', 'cover']): base_niche = "Musik"
             elif any(x in text for x in ['vlog', 'daily', 'travel']): base_niche = "Vlog & Lifestyle"
+            elif any(x in text for x in ['resep', 'masak', 'kuliner', 'food']): base_niche = "Kuliner"
 
         return f"{base_niche} {geo_tag}".strip()
 
     def get_channel_info(self, channel_id):
         if not self.youtube: return None
         try:
-            # CHANNEL LIST COST: 1 Unit
             self.used_quota += 1
-            
             request = self.youtube.channels().list(
                 part="snippet,contentDetails,statistics,topicDetails",
                 id=channel_id
@@ -118,67 +135,50 @@ class DataManager:
     def fetch_videos(self, uploads_playlist_id, limit=50):
         if not self.youtube: return pd.DataFrame()
         videos = []
-        
-        # --- [PERBAIKAN 1: KAMUS HARI INDONESIA] ---
         day_map = {
             'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
             'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
         }
-        # -------------------------------------------
 
         try:
-            # PLAYLIST ITEMS COST: 1 Unit
             self.used_quota += 1
-            
-            pl_request = self.youtube.playlistItems().list(
-                part="snippet,contentDetails",
-                playlistId=uploads_playlist_id,
-                maxResults=limit
+            pl_req = self.youtube.playlistItems().list(
+                part="snippet,contentDetails", playlistId=uploads_playlist_id, maxResults=limit
             )
-            pl_response = pl_request.execute()
-            video_ids = [item['contentDetails']['videoId'] for item in pl_response['items']]
+            pl_res = pl_req.execute()
+            video_ids = [item['contentDetails']['videoId'] for item in pl_res['items']]
             
             if not video_ids: return pd.DataFrame()
 
-            # VIDEOS LIST COST: 1 Unit
             self.used_quota += 1
-            
-            vid_request = self.youtube.videos().list(
-                part="snippet,statistics,contentDetails",
-                id=','.join(video_ids)
+            vid_req = self.youtube.videos().list(
+                part="snippet,statistics,contentDetails", id=','.join(video_ids)
             )
-            vid_response = vid_request.execute()
+            vid_res = vid_req.execute()
             
-            for item in vid_response['items']:
+            for item in vid_res['items']:
                 stats = item['statistics']
                 snippet = item['snippet']
                 
-                view_count = int(stats.get('viewCount', 0))
-                like_count = int(stats.get('likeCount', 0))
-                comment_count = int(stats.get('commentCount', 0))
+                view = int(stats.get('viewCount', 0))
+                like = int(stats.get('likeCount', 0))
+                comm = int(stats.get('commentCount', 0))
                 
-                # Konversi ke WIB
-                pub_date_utc = pd.to_datetime(snippet['publishedAt'])
-                if pub_date_utc.tzinfo is None:
-                    pub_date_wib = pub_date_utc + pd.Timedelta(hours=7)
-                else:
-                    pub_date_wib = pub_date_utc.tz_convert('Asia/Jakarta')
+                pub_utc = pd.to_datetime(snippet['publishedAt'])
+                pub_wib = pub_utc + pd.Timedelta(hours=7) if pub_utc.tzinfo is None else pub_utc.tz_convert('Asia/Jakarta')
                 
-                # --- [PERBAIKAN 2: KONVERSI NAMA HARI KE INDONESIA] ---
-                day_english = pub_date_wib.day_name()
-                day_indo = day_map.get(day_english, day_english)
-                # ------------------------------------------------------
-
+                day_en = pub_wib.day_name()
+                
                 videos.append({
                     'video_id': item['id'],
                     'title': snippet['title'],
-                    'published_at': pub_date_wib,
-                    'view_count': view_count,
-                    'like_count': like_count,
-                    'comment_count': comment_count,
+                    'published_at': pub_wib,
+                    'view_count': view,
+                    'like_count': like,
+                    'comment_count': comm,
                     'duration': item['contentDetails']['duration'],
-                    'day_name': day_indo, # Simpan nama hari Indonesia
-                    'hour': pub_date_wib.hour
+                    'day_name': day_map.get(day_en, day_en),
+                    'hour': pub_wib.hour
                 })
             return pd.DataFrame(videos)
         except:
