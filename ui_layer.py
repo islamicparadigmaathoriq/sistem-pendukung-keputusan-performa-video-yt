@@ -7,9 +7,6 @@ import io
 import re
 
 class UserInterface:
-#===========================================================
-#Fungsi Inisialisasi
-#===========================================================
     def __init__(self):
         st.markdown("""
         <style>
@@ -18,14 +15,11 @@ class UserInterface:
         .video-title { font-size: 16px; font-weight: bold; color: #000; line-height: 1.4; word-wrap: break-word; }
         </style>
         """, unsafe_allow_html=True)
-#===========================================================
-#Fungsi Sidebar & Input
-#===========================================================
+
     def render_sidebar(self, data_manager):
         st.sidebar.header("⚙️ Konfigurasi Sistem")
-#===========================================================
-#1. API KEY
-#===========================================================
+        
+        # 1. API KEY
         api_key = st.sidebar.text_input("1. Masukkan YouTube API Key", type="password")
         st.sidebar.info("""
         ℹ️ **Belum punya API Key?**
@@ -34,11 +28,11 @@ class UserInterface:
         3. Menu **Credentials** → **Create Credentials** → **API Key**.
         """)
         
-        if api_key: data_manager.update_key(api_key)
+        if api_key: 
+            data_manager.update_key(api_key)
         st.sidebar.divider()
-#===========================================================
-#2. CHANNEL UTAMA
-#===========================================================
+
+        # 2. CHANNEL UTAMA
         st.sidebar.markdown("### 2. Channel Utama")
         query = st.sidebar.text_input("Cari Channel Utama", placeholder="Contoh: GadgetIn")
         
@@ -48,7 +42,7 @@ class UserInterface:
                     st.session_state['res_main'] = data_manager.search_channels(query)
             else:
                 st.sidebar.warning("Isi API Key & Nama Channel.")
-        
+
         selected_channel_id = None
         main_category_info = None
         
@@ -90,28 +84,14 @@ class UserInterface:
                             unsafe_allow_html=True
                         )
                         st.sidebar.success(f"🏷️ Niche: **{main_niche}**")
-        
-        st.sidebar.divider()
-#===========================================================
-#2. DETEKSI NICHE
-#===========================================================
-            if api_key:
-                with st.spinner("Mendeteksi Niche..."):
-                    # Kita panggil get_info sebentar untuk tau nichenya
-                    info = data_manager.get_channel_info(selected_channel_id)
-                    if info:
-                        main_niche = info.get('niche_detected', 'Umum')
-                        st.sidebar.success(f"🏷️ Niche Terdeteksi: **{main_niche}**")
-                        st.session_state['detected_niche'] = main_niche
 
         st.sidebar.divider()
-#===========================================================
-#3. KOMPETITOR
-#===========================================================
+
+        # 3. KOMPETITOR MANUAL (dengan foto profil)
         st.sidebar.markdown("### 3. Channel Kompetitor")
         selected_competitors = []
         competitor_categories = []
-        
+
         for i in range(1, 3):  # Loop untuk 2 kompetitor
             st.sidebar.caption(f"**Kompetitor {i} (Opsional)**")
             
@@ -168,35 +148,39 @@ class UserInterface:
             
             if i < 2:
                 st.sidebar.divider()
-        
+
         # Simpan ke session state
         st.session_state['competitor_categories'] = competitor_categories
         st.sidebar.divider()
-#===========================================================
-#4. BOBOT
-#===========================================================
+        
+        # 4. BOBOT
         st.sidebar.header("⚖️ Bobot SAW")
         w_v = st.sidebar.slider("Views (C1)", 0.0, 1.0, 0.30)
         w_l = st.sidebar.slider("Likes (C2)", 0.0, 1.0, 0.25)
         w_c = st.sidebar.slider("Comments (C3)", 0.0, 1.0, 0.20)
         w_e = st.sidebar.slider("Engagement Rate (C4)", 0.0, 1.0, 0.25)
         
-        if round(w_v+w_l+w_c+w_e, 2) != 1.0: st.sidebar.error("⚠️ Total Bobot harus 1.0")
-        else: st.sidebar.success("✅ Bobot Valid")
+        if round(w_v+w_l+w_c+w_e, 2) != 1.0: 
+            st.sidebar.error("⚠️ Total Bobot harus 1.0")
+        else: 
+            st.sidebar.success("✅ Bobot Valid")
         
         st.sidebar.divider()
         st.sidebar.caption(f"Estimasi Kuota: **{data_manager.used_quota}** units")
         st.sidebar.progress(min(data_manager.used_quota/10000, 1.0))
 
         return api_key, selected_channel_id, selected_competitors, {'views': w_v, 'likes': w_l, 'comments': w_c, 'er': w_e}
-#===========================================================
+
     def render_overview(self, channel_info, df):
         st.markdown("### 📊 Overview Channel")
         niche = channel_info.get('niche_detected', 'Umum')
         color = "#0077b6" 
-        if "Jepang" in niche: color = "#d62828"
-        elif "Korea" in niche: color = "#9b2226"
-        elif "Indonesia" in niche: color = "#2a9d8f"
+        if "Jepang" in niche: 
+            color = "#d62828"
+        elif "Korea" in niche: 
+            color = "#9b2226"
+        elif "Indonesia" in niche: 
+            color = "#2a9d8f"
         
         st.markdown(f"**Kategori/Niche:** <span style='background-color:{color}20; padding:5px 10px; border-radius:10px; color:{color}; font-weight:bold; border: 1px solid {color}'>🏷️ {niche}</span>", unsafe_allow_html=True)
         
@@ -207,7 +191,7 @@ class UserInterface:
         c3.metric("Rata-rata Views", f"{df['view_count'].mean():,.0f}")
         c4.metric("Rata-rata ER", f"{df['engagement_rate'].mean():.2f}%")
         st.divider()
-#===========================================================
+
     def render_category_comparison(self, main_cat, comp_cats):
         """Tampilkan perbandingan kategori channel"""
         st.markdown("### 🎯 Analisis Positioning & Strategi")
@@ -348,9 +332,10 @@ class UserInterface:
         
         df_benchmark = pd.DataFrame(benchmark_data)
         st.dataframe(df_benchmark, use_container_width=True, hide_index=True)
-#===========================================================
+
     def render_comparison(self, main_info, main_df, comp_data_list):
-        if not comp_data_list: return
+        if not comp_data_list: 
+            return
         st.markdown("### ⚔️ Analisis Komparasi")
         
         comp_summary = [{
@@ -369,13 +354,15 @@ class UserInterface:
                 "Subs": int(c_info['statistics']['subscriberCount']),
                 "Status": "Kompetitor"
             })
- #===========================================================       
+        
         df_comp = pd.DataFrame(comp_summary)
         c1, c2 = st.columns(2)
-        with c1: st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg Views", color="Status", title="Perbandingan Views"), use_container_width=True)
-        with c2: st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg ER (%)", color="Status", title="Perbandingan Engagement"), use_container_width=True)
+        with c1: 
+            st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg Views", color="Status", title="Perbandingan Views"), use_container_width=True)
+        with c2: 
+            st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg ER (%)", color="Status", title="Perbandingan Engagement"), use_container_width=True)
         st.divider()
-#===========================================================
+
     def render_ranking_table(self, df_result):
         st.markdown("### 🏆 Hasil Pemeringkatan (SAW)")
         with st.expander("🔍 Filter Data"):
@@ -384,13 +371,15 @@ class UserInterface:
                 df_result['year'] = df_result['published_at'].dt.year
                 years = sorted(df_result['year'].unique(), reverse=True)
                 sel_year = c1.selectbox("Tahun:", ["Semua"] + list(years))
-            else: sel_year = "Semua"
+            else: 
+                sel_year = "Semua"
             min_v = int(df_result['view_count'].min())
             max_v = int(df_result['view_count'].max())
             sel_min_v = c2.slider("Min Views:", min_v, max_v, min_v)
 
         df_disp = df_result.copy()
-        if sel_year != "Semua": df_disp = df_disp[df_disp['year'] == sel_year]
+        if sel_year != "Semua": 
+            df_disp = df_disp[df_disp['year'] == sel_year]
         df_disp = df_disp[df_disp['view_count'] >= sel_min_v]
 
         st.caption(f"Menampilkan **{len(df_disp)}** video.")
@@ -409,10 +398,11 @@ class UserInterface:
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             temp = df_disp.copy()
-            if 'published_at' in temp.columns: temp['published_at'] = temp['published_at'].dt.tz_localize(None)
+            if 'published_at' in temp.columns: 
+                temp['published_at'] = temp['published_at'].dt.tz_localize(None)
             temp.to_excel(writer, index=False)
         st.download_button("💾 Download Excel", output.getvalue(), "saw_result.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-#===========================================================
+
     def render_analytics(self, df):
         st.markdown("### 📈 Dashboard Analitik & Strategi")
         best = df.iloc[0]
@@ -455,9 +445,12 @@ class UserInterface:
         with t3:
             corr = df['view_count'].corr(df['engagement_rate'])
             st.plotly_chart(px.scatter(df, x='view_count', y='engagement_rate', size='preference_score', title=f"Korelasi: {corr:.2f}"), use_container_width=True)
-            if corr > 0.5: msg = "Terdapat **korelasi positif kuat**."
-            elif corr < -0.5: msg = "Terdapat **korelasi negatif**."
-            else: msg = "Korelasi lemah/acak."
+            if corr > 0.5: 
+                msg = "Terdapat **korelasi positif kuat**."
+            elif corr < -0.5: 
+                msg = "Terdapat **korelasi negatif**."
+            else: 
+                msg = "Korelasi lemah/acak."
             st.info(f"💡 **Analisis Statistik:** {msg}")
 
         with t4:
@@ -466,12 +459,12 @@ class UserInterface:
             if clean:
                 wc = WordCloud(width=800, height=400, background_color='white').generate(clean)
                 fig, ax = plt.subplots()
-                ax.imshow(wc, interpolation='bilinear'); ax.axis('off')
+                ax.imshow(wc, interpolation='bilinear')
+                ax.axis('off')
                 st.pyplot(fig)
-            else: st.warning("Data teks kurang.")
+            else: 
+                st.warning("Data teks kurang.")
 
         with t5:
             desc = df[['view_count', 'like_count', 'engagement_rate']].describe()
             st.dataframe(desc.style.format("{:.2f}"))
-
-
