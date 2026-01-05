@@ -1,12 +1,17 @@
 import pandas as pd
 
 class SAWModel:
+#================================================================================================
+#Fungsi Inisialisasi
+#================================================================================================
     def __init__(self, weights):
         """
         weights: Dictionary {'views': float, 'likes': float, 'comments': float, 'er': float}
         """
         self.weights = weights
-
+#================================================================================================
+#Fungsi Perhitungan Metrik
+#================================================================================================
     def calculate_engagement_rate(self, df):
         """Menghitung Engagement Rate (ER)"""
         # Rumus: (Likes + Comments) / Views * 100
@@ -16,7 +21,9 @@ class SAWModel:
             if x['view_count'] > 0 else 0, axis=1
         )
         return df
-
+#================================================================================================
+#Fungsi Normalisasi
+#================================================================================================
     def normalize_data(self, df):
         """Normalisasi Matriks (Metode Benefit)"""
         # Copy dataframe agar data asli aman
@@ -35,7 +42,9 @@ class SAWModel:
         df_norm['norm_er'] = df['engagement_rate'] / max_er if max_er > 0 else 0
         
         return df_norm
-
+#================================================================================================
+#Fungsi Perhitungan Skor Preferensi
+#================================================================================================
     def calculate_preference(self, df_norm):
         """Menghitung Nilai Preferensi (V)"""
         # V = W1*R1 + W2*R2 + ...
@@ -45,4 +54,5 @@ class SAWModel:
             (self.weights['comments'] * df_norm['norm_comments']) +
             (self.weights['er'] * df_norm['norm_er'])
         )
+
         return df_norm.sort_values(by='preference_score', ascending=False).reset_index(drop=True)
