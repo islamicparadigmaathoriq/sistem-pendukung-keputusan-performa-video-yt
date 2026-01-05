@@ -3,8 +3,13 @@ from data_layer import DataManager
 from model_layer import SAWModel
 from ui_layer import UserInterface
 
+#===============================================
+#Konfigurasi Aplikasi
+#===============================================
 st.set_page_config(page_title="SPK Evaluasi Konten YouTube", layout="wide", page_icon="🎥")
-
+#===============================================
+#Inisialisasi Komponen
+#===============================================
 def main():
     ui = UserInterface()
     
@@ -15,8 +20,9 @@ def main():
         st.session_state['dm'] = DataManager(None)
     
     dm = st.session_state['dm']
-    
-    # 2. RENDER SIDEBAR (Sekarang return list kompetitor otomatis)
+#===============================================
+#2. RENDER SIDEBAR (Sekarang return list kompetitor otomatis)
+#===============================================
     api_key, channel_id, competitors, weights = ui.render_sidebar(dm)
     
     if st.sidebar.button("🚀 Analisis Channel", type="primary"):
@@ -26,8 +32,9 @@ def main():
         if not channel_id:
             st.error("⚠️ Mohon Cari dan Pilih Channel Utama terlebih dahulu.")
             return
-
-        # A. CHANNEL UTAMA
+#===============================================
+#A. CHANNEL UTAMA
+#===============================================
         with st.spinner("Mengambil data Channel Utama..."):
             main_info = dm.get_channel_info(channel_id)
             if not main_info:
@@ -40,8 +47,9 @@ def main():
         if df_videos.empty:
             st.warning("Tidak ada video publik ditemukan pada channel ini.")
             return
-
-        # B. KOMPETITOR (OTOMATIS DARI UI)
+#===============================================
+#B. KOMPETITOR (OTOMATIS DARI UI)
+#===============================================
         comp_data_list = []
         if any(competitors):
             with st.status("Sedang menganalisis kompetitor terpilih...", expanded=True):
@@ -57,15 +65,17 @@ def main():
                                 comp_data_list.append((c_info, c_df))
                         else:
                             st.warning(f"Gagal mengambil data kompetitor ID: {comp_id}")
-
-        # C. PROSES SAW
+#===============================================
+#C. PROSES SAW
+#===============================================
         model = SAWModel(weights)
         df_processed = model.calculate_engagement_rate(df_videos)
         df_normalized = model.normalize_data(df_processed)
         df_final = model.calculate_preference(df_normalized)
         df_final['Rank'] = df_final.index + 1
-
-        # D. OUTPUT
+#===============================================
+# D. OUTPUT
+#===============================================
         ui.render_overview(main_info, df_final)
         if comp_data_list:
             ui.render_comparison(main_info, df_processed, comp_data_list)
@@ -74,3 +84,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
