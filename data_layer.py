@@ -3,9 +3,9 @@ from googleapiclient.discovery import build
 import datetime
 
 class DataManager:
-#==========================================================
-#Fungsi Inisialisasi & Setup
-#==========================================================
+    #==========================================================
+    # Fungsi Inisialisasi & Setup
+    #==========================================================
     def __init__(self, api_key):
         self.api_key = api_key
         self.youtube = None
@@ -24,9 +24,9 @@ class DataManager:
         except:
             pass
 
-#==========================================================
-#Fungsi Pencarian Channel
-#==========================================================
+    #==========================================================
+    # Fungsi Pencarian Channel
+    #==========================================================
     def search_channels(self, query, limit=5):
         """Mencari channel berdasarkan nama"""
         if not self.youtube: return []
@@ -50,9 +50,9 @@ class DataManager:
         except:
             return []
 
-#==========================================================
-#DETEKSI NICHE
-#==========================================================
+    #==========================================================
+    # DETEKSI NICHE
+    #==========================================================
     def _detect_niche(self, channel_item):
         """Deteksi Niche + Geografi"""
         topics = channel_item.get('topicDetails', {}).get('topicCategories', [])
@@ -106,13 +106,9 @@ class DataManager:
         except:
             return None
             
-#==========================================================
-#Fungsi Analisis Channel
-#==========================================================
-
-#==========================================================
-#CARI KOMPETITOR BERDASARKAN NICHE]
-#==========================================================
+    #==========================================================
+    # CARI KOMPETITOR BERDASARKAN NICHE
+    #==========================================================
     def search_competitors_by_niche(self, niche_keyword, exclude_channel_id, limit=5):
         """Mencari 5 channel lain berdasarkan niche/topik"""
         if not self.youtube: return []
@@ -145,82 +141,84 @@ class DataManager:
             return results[:limit] # Kembalikan maksimal 5
         except:
             return []
-#==========================================================
-#KATEGORISASI CHANNEL
-#==========================================================
-def categorize_channel(self, channel_info):
-    """
-    Kategorikan channel berdasarkan subscribers dan performa
-    Returns: dict dengan kategori, level, dan benchmark
-    """
-    stats = channel_info.get('statistics', {})
-    subs = int(stats.get('subscriberCount', 0))
-    total_videos = int(stats.get('videoCount', 0))
-    total_views = int(stats.get('viewCount', 0))
-    
-    # Hitung average views per video
-    avg_views = total_views / total_videos if total_videos > 0 else 0
-    
-    # Kriteria Kategorisasi
-    if subs < 10000:
-        category = "🌱 Pemula (Beginner)"
-        level = "pemula"
-        color = "#6c757d"  # Abu-abu
-        benchmark = {
-            'subs_target': '10K subscribers',
-            'focus': 'Konsistensi upload, niche yang jelas, SEO dasar',
-            'challenge': 'Membangun audience awal, menemukan gaya konten',
-            'strategy': 'Upload rutin (2-3x/minggu), riset keyword, kolaborasi micro-influencer'
+
+    #==========================================================
+    # KATEGORISASI CHANNEL
+    #==========================================================
+    def categorize_channel(self, channel_info):
+        """
+        Kategorikan channel berdasarkan subscribers dan performa
+        Returns: dict dengan kategori, level, dan benchmark
+        """
+        stats = channel_info.get('statistics', {})
+        subs = int(stats.get('subscriberCount', 0))
+        total_videos = int(stats.get('videoCount', 0))
+        total_views = int(stats.get('viewCount', 0))
+        
+        # Hitung average views per video
+        avg_views = total_views / total_videos if total_videos > 0 else 0
+        
+        # Kriteria Kategorisasi
+        if subs < 10000:
+            category = "🌱 Pemula (Beginner)"
+            level = "pemula"
+            color = "#6c757d"  # Abu-abu
+            benchmark = {
+                'subs_target': '10K subscribers',
+                'focus': 'Konsistensi upload, niche yang jelas, SEO dasar',
+                'challenge': 'Membangun audience awal, menemukan gaya konten',
+                'strategy': 'Upload rutin (2-3x/minggu), riset keyword, kolaborasi micro-influencer'
+            }
+        elif subs < 100000:
+            category = "🚀 Menengah (Intermediate)"
+            level = "menengah"
+            color = "#0dcaf0"  # Cyan
+            benchmark = {
+                'subs_target': '100K subscribers',
+                'focus': 'Engagement rate, kualitas produksi, branding',
+                'challenge': 'Meningkatkan retention, monetisasi, scaling content',
+                'strategy': 'Optimalkan CTR & AVD, diversifikasi konten, sponsorship'
+            }
+        elif subs < 1000000:
+            category = "⭐ Mapan (Established)"
+            level = "mapan"
+            color = "#ffc107"  # Kuning/Gold
+            benchmark = {
+                'subs_target': '1M subscribers (Gold Button)',
+                'focus': 'Skalabilitas, tim produksi, multiple revenue streams',
+                'challenge': 'Mempertahankan growth, kompetisi ketat, burnout',
+                'strategy': 'Professional production, merchandise, komunitas loyal'
+            }
+        else:
+            category = "💎 Profesional (Pro/Celebrity)"
+            level = "profesional"
+            color = "#dc3545"  # Merah
+            benchmark = {
+                'subs_target': 'Maintain & grow beyond 1M',
+                'focus': 'Brand deals, media exposure, viral content',
+                'challenge': 'Inovasi konten, stay relevant, manajemen tim besar',
+                'strategy': 'Multi-platform presence, exclusive content, big collaborations'
+            }
+        
+        return {
+            'category': category,
+            'level': level,
+            'color': color,
+            'subs': subs,
+            'avg_views': avg_views,
+            'total_videos': total_videos,
+            'benchmark': benchmark
         }
-    elif subs < 100000:
-        category = "🚀 Menengah (Intermediate)"
-        level = "menengah"
-        color = "#0dcaf0"  # Cyan
-        benchmark = {
-            'subs_target': '100K subscribers',
-            'focus': 'Engagement rate, kualitas produksi, branding',
-            'challenge': 'Meningkatkan retention, monetisasi, scaling content',
-            'strategy': 'Optimalkan CTR & AVD, diversifikasi konten, sponsorship'
-        }
-    elif subs < 1000000:
-        category = "⭐ Mapan (Established)"
-        level = "mapan"
-        color = "#ffc107"  # Kuning/Gold
-        benchmark = {
-            'subs_target': '1M subscribers (Gold Button)',
-            'focus': 'Skalabilitas, tim produksi, multiple revenue streams',
-            'challenge': 'Mempertahankan growth, kompetisi ketat, burnout',
-            'strategy': 'Professional production, merchandise, komunitas loyal'
-        }
-    else:
-        category = "💎 Profesional (Pro/Celebrity)"
-        level = "profesional"
-        color = "#dc3545"  # Merah
-        benchmark = {
-            'subs_target': 'Maintain & grow beyond 1M',
-            'focus': 'Brand deals, media exposure, viral content',
-            'challenge': 'Inovasi konten, stay relevant, manajemen tim besar',
-            'strategy': 'Multi-platform presence, exclusive content, big collaborations'
-        }
-    
-    return {
-        'category': category,
-        'level': level,
-        'color': color,
-        'subs': subs,
-        'avg_views': avg_views,
-        'total_videos': total_videos,
-        'benchmark': benchmark
-    }
-#==========================================================
-#Fungsi Analisis Video
-#==========================================================
+
+    #==========================================================
+    # Fungsi Analisis Video
+    #==========================================================
     def fetch_videos(self, uploads_playlist_id, limit=50):
         if not self.youtube: return pd.DataFrame()
         videos = []
-#==========================================================
-#lokalisasi
-#==========================================================  
+        #==========================================================
+        # lokalisasi
+        #==========================================================  
         day_map = {
             'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
             'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
@@ -235,9 +233,10 @@ def categorize_channel(self, channel_info):
             video_ids = [item['contentDetails']['videoId'] for item in pl_res['items']]
             
             if not video_ids: return pd.DataFrame()
-#==========================================================
-#treking kuota
-#==========================================================  
+            
+            #==========================================================
+            # treking kuota
+            #==========================================================  
             self.used_quota += 1
             vid_req = self.youtube.videos().list(
                 part="snippet,statistics,contentDetails", id=','.join(video_ids)
@@ -252,9 +251,9 @@ def categorize_channel(self, channel_info):
                 like = int(stats.get('likeCount', 0))
                 comm = int(stats.get('commentCount', 0))
 
-#==========================================================
-#timezone handling
-#==========================================================                
+                #==========================================================
+                # timezone handling
+                #==========================================================                
                 pub_utc = pd.to_datetime(snippet['publishedAt'])
                 pub_wib = pub_utc + pd.Timedelta(hours=7) if pub_utc.tzinfo is None else pub_utc.tz_convert('Asia/Jakarta')
                 
@@ -274,5 +273,3 @@ def categorize_channel(self, channel_info):
             return pd.DataFrame(videos)
         except:
             return pd.DataFrame()
-
-
