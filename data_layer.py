@@ -3,6 +3,9 @@ from googleapiclient.discovery import build
 import datetime
 
 class DataManager:
+#==========================================================
+#Fungsi Inisialisasi & Setup
+#==========================================================
     def __init__(self, api_key):
         self.api_key = api_key
         self.youtube = None
@@ -21,6 +24,9 @@ class DataManager:
         except:
             pass
 
+#==========================================================
+#Fungsi Pencarian Channel
+#==========================================================
     def search_channels(self, query, limit=5):
         """Mencari channel berdasarkan nama"""
         if not self.youtube: return []
@@ -44,41 +50,9 @@ class DataManager:
         except:
             return []
 
-    # --- [CARI KOMPETITOR BERDASARKAN NICHE] ---
-    def search_competitors_by_niche(self, niche_keyword, exclude_channel_id, limit=5):
-        """Mencari 5 channel lain berdasarkan niche/topik"""
-        if not self.youtube: return []
-        
-        # Bersihkan keyword (misal: "Gaming (Indonesia)" -> "Gaming Indonesia")
-        clean_query = niche_keyword.replace("(", "").replace(")", "")
-        
-        try:
-            self.used_quota += 100
-            request = self.youtube.search().list(
-                part="snippet",
-                q=clean_query, # Cari berdasarkan topik
-                type="channel",
-                order="viewCount", # Cari yang populer
-                maxResults=limit + 1 # Ambil lebih 1 untuk jaga-jaga kalau ada channel utama
-            )
-            response = request.execute()
-            
-            results = []
-            for item in response['items']:
-                cid = item['snippet']['channelId']
-                # Jangan masukkan channel utama ke daftar kompetitor
-                if cid != exclude_channel_id:
-                    thumb = item['snippet']['thumbnails'].get('default', {}).get('url')
-                    results.append({
-                        'channel_id': cid,
-                        'title': item['snippet']['title'],
-                        'thumbnail': thumb
-                    })
-            return results[:limit] # Kembalikan maksimal 5
-        except:
-            return []
-    # -------------------------------------------------------
-
+#==========================================================
+#DETEKSI NICHE
+#==========================================================
     def _detect_niche(self, channel_item):
         """Deteksi Niche + Geografi"""
         topics = channel_item.get('topicDetails', {}).get('topicCategories', [])
@@ -131,10 +105,56 @@ class DataManager:
             return None
         except:
             return None
+            
+#==========================================================
+#Fungsi Analisis Channel
+#==========================================================
 
+#==========================================================
+#CARI KOMPETITOR BERDASARKAN NICHE]
+#==========================================================
+    def search_competitors_by_niche(self, niche_keyword, exclude_channel_id, limit=5):
+        """Mencari 5 channel lain berdasarkan niche/topik"""
+        if not self.youtube: return []
+        
+        # Bersihkan keyword (misal: "Gaming (Indonesia)" -> "Gaming Indonesia")
+        clean_query = niche_keyword.replace("(", "").replace(")", "")
+        
+        try:
+            self.used_quota += 100
+            request = self.youtube.search().list(
+                part="snippet",
+                q=clean_query, # Cari berdasarkan topik
+                type="channel",
+                order="viewCount", # Cari yang populer
+                maxResults=limit + 1 # Ambil lebih 1 untuk jaga-jaga kalau ada channel utama
+            )
+            response = request.execute()
+            
+            results = []
+            for item in response['items']:
+                cid = item['snippet']['channelId']
+                # Jangan masukkan channel utama ke daftar kompetitor
+                if cid != exclude_channel_id:
+                    thumb = item['snippet']['thumbnails'].get('default', {}).get('url')
+                    results.append({
+                        'channel_id': cid,
+                        'title': item['snippet']['title'],
+                        'thumbnail': thumb
+                    })
+            return results[:limit] # Kembalikan maksimal 5
+        except:
+            return []
+
+#==========================================================
+#Fungsi Analisis Video
+#==========================================================
     def fetch_videos(self, uploads_playlist_id, limit=50):
         if not self.youtube: return pd.DataFrame()
         videos = []
+#==========================================================
+#lokalisasi
+#==========================================================  
         day_map = {
             'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu',
             'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu', 'Sunday': 'Minggu'
@@ -149,7 +169,9 @@ class DataManager:
             video_ids = [item['contentDetails']['videoId'] for item in pl_res['items']]
             
             if not video_ids: return pd.DataFrame()
-
+#==========================================================
+#treking kuota
+#==========================================================  
             self.used_quota += 1
             vid_req = self.youtube.videos().list(
                 part="snippet,statistics,contentDetails", id=','.join(video_ids)
@@ -163,7 +185,10 @@ class DataManager:
                 view = int(stats.get('viewCount', 0))
                 like = int(stats.get('likeCount', 0))
                 comm = int(stats.get('commentCount', 0))
-                
+
+#==========================================================
+#timezone handling
+#==========================================================                
                 pub_utc = pd.to_datetime(snippet['publishedAt'])
                 pub_wib = pub_utc + pd.Timedelta(hours=7) if pub_utc.tzinfo is None else pub_utc.tz_convert('Asia/Jakarta')
                 
@@ -183,3 +208,4 @@ class DataManager:
             return pd.DataFrame(videos)
         except:
             return pd.DataFrame()
+
