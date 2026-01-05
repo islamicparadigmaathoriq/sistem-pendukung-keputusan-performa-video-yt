@@ -8,146 +8,128 @@ import re
 
 class UserInterface:
     def __init__(self):
-        # CSS CUSTOM UNTUK TAMPILAN
         st.markdown("""
         <style>
-        /* Kotak Metric Rounded */
-        div[data-testid="stMetric"] {
-            background-color: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
-        }
-        /* Custom Card untuk Video Terbaik (Judul Panjang) */
-        .video-card {
-            background-color: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
-            height: 100%;
-        }
-        .video-label {
-            font-size: 14px; color: #6c757d; margin-bottom: 5px;
-        }
-        .video-title {
-            font-size: 16px; font-weight: bold; color: #000;
-            line-height: 1.4; /* Jarak antar baris */
-            word-wrap: break-word; /* Wrap teks panjang */
-        }
+        div[data-testid="stMetric"] { background-color: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 15px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
+        .video-card { background-color: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 15px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); height: 100%; }
+        .video-title { font-size: 16px; font-weight: bold; color: #000; line-height: 1.4; word-wrap: break-word; }
         </style>
         """, unsafe_allow_html=True)
-
-    def _render_competitor_selector(self, index, data_manager):
-        """Helper untuk search kompetitor"""
-        st.markdown(f"**Kompetitor {index}**")
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            query = st.text_input(f"Cari Komp {index}", key=f"q_comp_{index}", 
-                                  placeholder="Nama Channel...", label_visibility="collapsed")
-        with col2:
-            is_search = st.button("🔍", key=f"btn_comp_{index}")
-
-        if is_search and query:
-            with st.spinner(f"Mencari..."):
-                results = data_manager.search_channels(query)
-                st.session_state[f'res_comp_{index}'] = results
-        
-        selected_id = ""
-        if f'res_comp_{index}' in st.session_state:
-            results = st.session_state[f'res_comp_{index}']
-            if results:
-                options = [f"{r['title']}" for r in results]
-                choice = st.selectbox(f"Pilih Hasil K-{index}", options, key=f"sel_comp_{index}", label_visibility="collapsed")
-                idx = options.index(choice)
-                target = results[idx]
-                selected_id = target['channel_id']
-                
-                c_img, c_txt = st.columns([1, 3])
-                with c_img: st.image(target['thumbnail'], width=40)
-                with c_txt: st.caption(f"ID: `{selected_id}`")
-            else:
-                st.warning("Tidak ditemukan.")
-        return selected_id
 
     def render_sidebar(self, data_manager):
         st.sidebar.header("⚙️ Konfigurasi Sistem")
         
+        # 1. API KEY
         api_key = st.sidebar.text_input("1. Masukkan YouTube API Key", type="password")
-        if api_key:
-            data_manager.update_key(api_key)
+        st.sidebar.info("""
+        ℹ️ **Belum punya API Key?**
+        1. Buka [Google Cloud Console](https://console.cloud.google.com/).
+        2. Buat **Project Baru** → Cari **"YouTube Data API v3"** → Enable.
+        3. Menu **Credentials** → **Create Credentials** → **API Key**.
+        """)
         
+        if api_key: data_manager.update_key(api_key)
         st.sidebar.divider()
 
-        # Channel Utama
+        # 2. CHANNEL UTAMA
         st.sidebar.markdown("### 2. Channel Utama")
         query = st.sidebar.text_input("Cari Channel Utama", placeholder="Contoh: GadgetIn")
+        
         if st.sidebar.button("🔍 Cari Utama"):
             if api_key and query:
                 with st.spinner("Mencari..."):
-                    results = data_manager.search_channels(query)
-                    st.session_state['search_results_main'] = results
+                    st.session_state['res_main'] = data_manager.search_channels(query)
             else:
                 st.sidebar.warning("Isi API Key & Nama Channel.")
 
         selected_channel_id = None
-        if 'search_results_main' in st.session_state and st.session_state['search_results_main']:
-            results = st.session_state['search_results_main']
-            options = [f"{r['title']}" for r in results]
+        main_niche = None
+        
+        if 'res_main' in st.session_state and st.session_state['res_main']:
+            options = [f"{r['title']}" for r in st.session_state['res_main']]
             choice = st.sidebar.selectbox("Pilih Hasil:", options, key="main_select")
             idx = options.index(choice)
-            target = results[idx]
+            target = st.session_state['res_main'][idx]
             selected_channel_id = target['channel_id']
             
-            col_img, col_info = st.sidebar.columns([1, 3])
-            with col_img:
-                if target['thumbnail']: st.image(target['thumbnail'], width=50)
-            with col_info: st.caption(f"**{target['title']}**")
+            c1, c2 = st.sidebar.columns([1, 3])
+            with c1: st.image(target['thumbnail'], width=50)
+            with c2: st.caption(f"**{target['title']}**")
+            
+            # --- DETEKSI NICHE OTOMATIS UTK REKOMENDASI ---
+            if api_key:
+                with st.spinner("Mendeteksi Niche..."):
+                    # Kita panggil get_info sebentar untuk tau nichenya
+                    info = data_manager.get_channel_info(selected_channel_id)
+                    if info:
+                        main_niche = info.get('niche_detected', 'Umum')
+                        st.sidebar.success(f"🏷️ Niche Terdeteksi: **{main_niche}**")
+                        st.session_state['detected_niche'] = main_niche
 
         st.sidebar.divider()
 
-        # Kompetitor
-        st.sidebar.markdown("### 3. Komparasi (Opsional)")
-        comp1_id = self._render_competitor_selector(1, data_manager)
-        comp2_id = self._render_competitor_selector(2, data_manager)
+        # 3. KOMPETITOR OTOMATIS
+        st.sidebar.markdown("### 3. Pilih Kompetitor")
+        selected_competitors = []
         
-        st.sidebar.divider()
-        
-        # Bobot
-        st.sidebar.header("⚖️ Bobot SAW")
-        w_views = st.sidebar.slider("Views (C1)", 0.0, 1.0, 0.30)
-        w_likes = st.sidebar.slider("Likes (C2)", 0.0, 1.0, 0.25)
-        w_comments = st.sidebar.slider("Comments (C3)", 0.0, 1.0, 0.20)
-        w_er = st.sidebar.slider("Engagement Rate (C4)", 0.0, 1.0, 0.25)
-        
-        total = w_views + w_likes + w_comments + w_er
-        if round(total, 2) != 1.0:
-            st.sidebar.error(f"⚠️ Total: {total:.2f} (Wajib 1.0)")
+        if selected_channel_id and 'detected_niche' in st.session_state:
+            niche = st.session_state['detected_niche']
+            
+            # Tombol Cari Kompetitor
+            if st.sidebar.button(f"🔍 Cari 5 Kompetitor ({niche})"):
+                with st.spinner("Mencari kompetitor sejenis..."):
+                    comps = data_manager.search_competitors_by_niche(niche, selected_channel_id)
+                    st.session_state['competitor_candidates'] = comps
+            
+            # Tampilkan Pilihan jika sudah ada kandidat
+            if 'competitor_candidates' in st.session_state and st.session_state['competitor_candidates']:
+                candidates = st.session_state['competitor_candidates']
+                cand_names = [c['title'] for c in candidates]
+                
+                st.sidebar.caption("Pilih maksimal 2 kompetitor:")
+                selected_names = st.sidebar.multiselect(
+                    "Kandidat:", 
+                    options=cand_names,
+                    max_selections=2,
+                    label_visibility="collapsed"
+                )
+                
+                # Ambil ID dari nama yang dipilih
+                for name in selected_names:
+                    for cand in candidates:
+                        if cand['title'] == name:
+                            selected_competitors.append(cand['channel_id'])
+                            break
+            else:
+                st.sidebar.caption("Klik tombol cari untuk melihat rekomendasi.")
         else:
-            st.sidebar.success("✅ Bobot Valid")
-        
-        # --- FITUR BARU: MONITOR KUOTA API ---
-        st.sidebar.divider()
-        st.sidebar.markdown("### 📊 Monitor Kuota API")
-        used = data_manager.used_quota
-        limit_daily = 10000 # Batas gratis harian standar
-        
-        st.sidebar.caption(f"Estimasi Penggunaan Sesi Ini: **{used}** units")
-        st.sidebar.progress(min(used / limit_daily, 1.0))
-        st.sidebar.caption("*Catatan: Ini estimasi sesi.*")
-        # -------------------------------------
+            st.sidebar.caption("Pilih Channel Utama dulu.")
 
-        return api_key, selected_channel_id, [comp1_id, comp2_id], {'views': w_views, 'likes': w_likes, 'comments': w_comments, 'er': w_er}
+        st.sidebar.divider()
+        
+        # 4. BOBOT
+        st.sidebar.header("⚖️ Bobot SAW")
+        w_v = st.sidebar.slider("Views (C1)", 0.0, 1.0, 0.30)
+        w_l = st.sidebar.slider("Likes (C2)", 0.0, 1.0, 0.25)
+        w_c = st.sidebar.slider("Comments (C3)", 0.0, 1.0, 0.20)
+        w_e = st.sidebar.slider("Engagement Rate (C4)", 0.0, 1.0, 0.25)
+        
+        if round(w_v+w_l+w_c+w_e, 2) != 1.0: st.sidebar.error("⚠️ Total Bobot harus 1.0")
+        else: st.sidebar.success("✅ Bobot Valid")
+        
+        st.sidebar.divider()
+        st.sidebar.caption(f"Estimasi Kuota: **{data_manager.used_quota}** units")
+        st.sidebar.progress(min(data_manager.used_quota/10000, 1.0))
+
+        return api_key, selected_channel_id, selected_competitors, {'views': w_v, 'likes': w_l, 'comments': w_c, 'er': w_e}
 
     def render_overview(self, channel_info, df):
         st.markdown("### 📊 Overview Channel")
         niche = channel_info.get('niche_detected', 'Umum')
-        
         color = "#0077b6" 
         if "Jepang" in niche: color = "#d62828"
-        if "Korea" in niche: color = "#9b2226"
-        if "Indonesia" in niche: color = "#2a9d8f"
+        elif "Korea" in niche: color = "#9b2226"
+        elif "Indonesia" in niche: color = "#2a9d8f"
         
         st.markdown(f"**Kategori/Niche:** <span style='background-color:{color}20; padding:5px 10px; border-radius:10px; color:{color}; font-weight:bold; border: 1px solid {color}'>🏷️ {niche}</span>", unsafe_allow_html=True)
         
@@ -182,10 +164,8 @@ class UserInterface:
         
         df_comp = pd.DataFrame(comp_summary)
         c1, c2 = st.columns(2)
-        with c1:
-            st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg Views", color="Status", title="Perbandingan Views"), use_container_width=True)
-        with c2:
-            st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg ER (%)", color="Status", title="Perbandingan Engagement"), use_container_width=True)
+        with c1: st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg Views", color="Status", title="Perbandingan Views"), use_container_width=True)
+        with c2: st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg ER (%)", color="Status", title="Perbandingan Engagement"), use_container_width=True)
         st.divider()
 
     def render_ranking_table(self, df_result):
@@ -206,7 +186,6 @@ class UserInterface:
         df_disp = df_disp[df_disp['view_count'] >= sel_min_v]
 
         st.caption(f"Menampilkan **{len(df_disp)}** video.")
-        
         with st.expander("🧮 Detail Perhitungan (Normalisasi)"):
             norm_cols = ['title', 'norm_views', 'norm_likes', 'norm_comments', 'norm_er']
             if all(c in df_disp.columns for c in norm_cols):
@@ -219,7 +198,6 @@ class UserInterface:
         df_show.columns = ['Judul', 'Waktu (WIB)', 'Views', 'Likes', 'Komen', 'ER (%)', 'Skor V', 'Rank']
         st.dataframe(df_show.style.highlight_max(axis=0, subset=['Skor V'], color='#90ee90'))
         
-        # Download
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             temp = df_disp.copy()
@@ -229,46 +207,33 @@ class UserInterface:
 
     def render_analytics(self, df):
         st.markdown("### 📈 Dashboard Analitik & Strategi")
-        
         best = df.iloc[0]
-        # Cari Insight Utama
         best_day = df.groupby('day_name')['view_count'].mean().idxmax()
         
-        # --- FITUR BARU: CUSTOM HTML CARD UNTUK JUDUL ---
         m1, m2, m3 = st.columns(3)
         with m1:
             st.markdown(f"""
             <div class="video-card">
                 <div class="video-label">Video Terbaik</div>
                 <div class="video-title">{best['title']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
         m2.metric("Skor SAW Tertinggi", f"{best['preference_score']:.4f}")
         m3.metric("Views Video Terbaik", f"{best['view_count']:,}")
         st.divider()
 
         t1, t2, t3, t4, t5 = st.tabs(["Peta Strategi", "Top 5", "Korelasi", "Word Cloud", "Statistik"])
-        
-        # --- [PERBAIKAN 3: SORTING HARI INDONESIA] ---
         days_indo = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
-        # ---------------------------------------------
-
+        
         with t1:
             st.markdown("#### Analisis Waktu Upload")
             c1, c2 = st.columns(2)
-            
             with c1:
-                st.markdown("**1. Tren Harian**")
-                # Reindex menggunakan nama hari Indonesia
                 df_hari = df.groupby('day_name')['view_count'].mean().reindex(days_indo).reset_index()
                 st.plotly_chart(px.line(df_hari, x='day_name', y='view_count', markers=True, title="Tren Harian"), use_container_width=True)
             with c2:
-                st.markdown("**2. Heatmap Zona Waktu**")
-                # Reindex heatmap juga
                 hmap = df.pivot_table(index='day_name', columns='hour', values='view_count', aggfunc='mean').fillna(0).reindex(days_indo)
                 st.plotly_chart(px.imshow(hmap, labels=dict(x="Jam", y="Hari"), color_continuous_scale='RdYlGn', title="Heatmap"), use_container_width=True)
-
-            # AUTOMATIC INSIGHT TEKS
+            
             best_hour = df.groupby('hour')['view_count'].mean().idxmax()
             st.info(f"""
             💡 **Insight Otomatis:**
@@ -282,13 +247,9 @@ class UserInterface:
         with t3:
             corr = df['view_count'].corr(df['engagement_rate'])
             st.plotly_chart(px.scatter(df, x='view_count', y='engagement_rate', size='preference_score', title=f"Korelasi: {corr:.2f}"), use_container_width=True)
-            
-            if corr > 0.5:
-                msg = "Terdapat **korelasi positif kuat**. Video dengan views tinggi cenderung memiliki interaksi (ER) yang tinggi juga."
-            elif corr < -0.5:
-                msg = "Terdapat **korelasi negatif**. Video views tinggi justru memiliki persentase interaksi rendah (mungkin viral tapi pasif)."
-            else:
-                msg = "Korelasi lemah/acak. Tidak ada hubungan pasti antara jumlah views dengan tingkat keaktifan penonton."
+            if corr > 0.5: msg = "Terdapat **korelasi positif kuat**."
+            elif corr < -0.5: msg = "Terdapat **korelasi negatif**."
+            else: msg = "Korelasi lemah/acak."
             st.info(f"💡 **Analisis Statistik:** {msg}")
 
         with t4:
@@ -304,12 +265,3 @@ class UserInterface:
         with t5:
             desc = df[['view_count', 'like_count', 'engagement_rate']].describe()
             st.dataframe(desc.style.format("{:.2f}"))
-            
-            avg_er = desc.loc['mean', 'engagement_rate']
-            std_views = desc.loc['std', 'view_count']
-            
-            st.info(f"""
-            💡 **Ringkasan:**
-            - Rata-rata Engagement Rate channel ini adalah **{avg_er:.2f}%**.
-            - Standar deviasi views sebesar **{std_views:,.0f}**, menunjukkan {'variasi performa video sangat tinggi (tidak stabil)' if std_views > desc.loc['mean','view_count'] else 'performa video cukup konsisten'}.
-            """)
