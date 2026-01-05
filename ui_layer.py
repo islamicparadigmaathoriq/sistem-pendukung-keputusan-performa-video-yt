@@ -7,6 +7,9 @@ import io
 import re
 
 class UserInterface:
+#===========================================================
+#Fungsi Inisialisasi
+#===========================================================
     def __init__(self):
         st.markdown("""
         <style>
@@ -15,11 +18,14 @@ class UserInterface:
         .video-title { font-size: 16px; font-weight: bold; color: #000; line-height: 1.4; word-wrap: break-word; }
         </style>
         """, unsafe_allow_html=True)
-
+#===========================================================
+#Fungsi Sidebar & Input
+#===========================================================
     def render_sidebar(self, data_manager):
         st.sidebar.header("⚙️ Konfigurasi Sistem")
-        
-        # 1. API KEY
+#===========================================================
+#1. API KEY
+#===========================================================
         api_key = st.sidebar.text_input("1. Masukkan YouTube API Key", type="password")
         st.sidebar.info("""
         ℹ️ **Belum punya API Key?**
@@ -30,8 +36,9 @@ class UserInterface:
         
         if api_key: data_manager.update_key(api_key)
         st.sidebar.divider()
-
-        # 2. CHANNEL UTAMA
+#===========================================================
+#2. CHANNEL UTAMA
+#===========================================================
         st.sidebar.markdown("### 2. Channel Utama")
         query = st.sidebar.text_input("Cari Channel Utama", placeholder="Contoh: GadgetIn")
         
@@ -55,8 +62,9 @@ class UserInterface:
             c1, c2 = st.sidebar.columns([1, 3])
             with c1: st.image(target['thumbnail'], width=50)
             with c2: st.caption(f"**{target['title']}**")
-            
-            # --- DETEKSI NICHE OTOMATIS UTK REKOMENDASI ---
+#===========================================================
+#2. DETEKSI NICHE
+#===========================================================
             if api_key:
                 with st.spinner("Mendeteksi Niche..."):
                     # Kita panggil get_info sebentar untuk tau nichenya
@@ -67,8 +75,9 @@ class UserInterface:
                         st.session_state['detected_niche'] = main_niche
 
         st.sidebar.divider()
-
-        # 3. KOMPETITOR OTOMATIS
+#===========================================================
+#3. KOMPETITOR OTOMATIS
+#===========================================================
         st.sidebar.markdown("### 3. Pilih Kompetitor")
         selected_competitors = []
         
@@ -106,8 +115,9 @@ class UserInterface:
             st.sidebar.caption("Pilih Channel Utama dulu.")
 
         st.sidebar.divider()
-        
-        # 4. BOBOT
+#===========================================================
+#4. BOBOT
+#===========================================================
         st.sidebar.header("⚖️ Bobot SAW")
         w_v = st.sidebar.slider("Views (C1)", 0.0, 1.0, 0.30)
         w_l = st.sidebar.slider("Likes (C2)", 0.0, 1.0, 0.25)
@@ -265,3 +275,4 @@ class UserInterface:
         with t5:
             desc = df[['view_count', 'like_count', 'engagement_rate']].describe()
             st.dataframe(desc.style.format("{:.2f}"))
+
