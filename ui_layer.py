@@ -77,20 +77,16 @@ class UserInterface:
         # 1. INPUT API KEY
         api_key = st.sidebar.text_input("1. Masukkan YouTube API Key", type="password")
         
-        # --- [PERUBAHAN: PAKAI KOTAK HTML KUNING AGAR PASTI MUNCUL] ---
-        st.sidebar.markdown("""
-        <div style="background-color: #fff3cd; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba; margin-top: 10px; margin-bottom: 20px;">
-            <strong style="color: #856404;">ℹ️ Cara Dapat API Key:</strong>
-            <ol style="color: #856404; margin-left: -15px; font-size: 13px;">
-                <li>Buka <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>.</li>
-                <li>Buat <b>Project Baru</b>.</li>
-                <li>Cari <b>"YouTube Data API v3"</b> & Enable.</li>
-                <li>Menu <b>Credentials</b> → <b>Create Credentials</b> → <b>API Key</b>.</li>
-                <li>Copy & Paste di atas.</li>
-            </ol>
-        </div>
-        """, unsafe_allow_html=True)
-        # ----------------------------------------------------------------
+        # --- [PERUBAHAN: GUNAKAN KOTAK WARNING AGAR KUNING & JELAS] ---
+        st.sidebar.warning("""
+        👉 **Belum punya API Key?**
+        
+        1. Buka **[Google Cloud Console](https://console.cloud.google.com/)**.
+        2. Buat Project Baru.
+        3. Cari **"YouTube Data API v3"** & Enable.
+        4. Masuk menu **Credentials** → Create API Key.
+        """)
+        # ---------------------------------------------------------------
 
         if api_key:
             data_manager.update_key(api_key)
