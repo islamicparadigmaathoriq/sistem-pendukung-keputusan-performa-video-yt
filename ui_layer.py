@@ -48,9 +48,9 @@ class UserInterface:
                     st.session_state['res_main'] = data_manager.search_channels(query)
             else:
                 st.sidebar.warning("Isi API Key & Nama Channel.")
-
+        
         selected_channel_id = None
-        main_niche = None
+        main_category_info = None
         
         if 'res_main' in st.session_state and st.session_state['res_main']:
             options = [f"{r['title']}" for r in st.session_state['res_main']]
@@ -59,9 +59,39 @@ class UserInterface:
             target = st.session_state['res_main'][idx]
             selected_channel_id = target['channel_id']
             
-            c1, c2 = st.sidebar.columns([1, 3])
-            with c1: st.image(target['thumbnail'], width=50)
-            with c2: st.caption(f"**{target['title']}**")
+            # TAMPILKAN FOTO PROFIL + INFO
+            col1, col2 = st.sidebar.columns([1, 2])
+            with col1:
+                st.image(target['thumbnail'], width=80)
+            with col2:
+                st.caption(f"**{target['title']}**")
+            
+            # DETEKSI NICHE & KATEGORISASI
+            if api_key:
+                with st.spinner("Menganalisis channel..."):
+                    info = data_manager.get_channel_info(selected_channel_id)
+                    if info:
+                        # Niche Detection
+                        main_niche = info.get('niche_detected', 'Umum')
+                        st.session_state['detected_niche'] = main_niche
+                        
+                        # Kategorisasi Channel
+                        main_category_info = data_manager.categorize_channel(info)
+                        st.session_state['main_category'] = main_category_info
+                        
+                        # Display Badge
+                        st.sidebar.markdown(
+                            f"<div style='background-color:{main_category_info['color']}20; "
+                            f"padding:8px; border-radius:8px; border:1px solid {main_category_info['color']}; "
+                            f"text-align:center; margin:5px 0;'>"
+                            f"<strong style='color:{main_category_info['color']}'>{main_category_info['category']}</strong><br>"
+                            f"<small>{main_category_info['subs']:,} subscribers</small>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+                        st.sidebar.success(f"🏷️ Niche: **{main_niche}**")
+        
+        st.sidebar.divider()
 #===========================================================
 #2. DETEKSI NICHE
 #===========================================================
@@ -76,44 +106,71 @@ class UserInterface:
 
         st.sidebar.divider()
 #===========================================================
-#3. KOMPETITOR OTOMATIS
+#3. KOMPETITOR
 #===========================================================
-        st.sidebar.markdown("### 3. Pilih Kompetitor")
+        st.sidebar.markdown("### 3. Channel Kompetitor")
         selected_competitors = []
+        competitor_categories = []
         
-        if selected_channel_id and 'detected_niche' in st.session_state:
-            niche = st.session_state['detected_niche']
+        for i in range(1, 3):  # Loop untuk 2 kompetitor
+            st.sidebar.caption(f"**Kompetitor {i} (Opsional)**")
             
-            # Tombol Cari Kompetitor
-            if st.sidebar.button(f"🔍 Cari 5 Kompetitor ({niche})"):
-                with st.spinner("Mencari kompetitor sejenis..."):
-                    comps = data_manager.search_competitors_by_niche(niche, selected_channel_id)
-                    st.session_state['competitor_candidates'] = comps
+            query_comp = st.sidebar.text_input(
+                f"Cari Kompetitor {i}", 
+                placeholder=f"Contoh: Nama channel...", 
+                key=f"comp{i}_search"
+            )
             
-            # Tampilkan Pilihan jika sudah ada kandidat
-            if 'competitor_candidates' in st.session_state and st.session_state['competitor_candidates']:
-                candidates = st.session_state['competitor_candidates']
-                cand_names = [c['title'] for c in candidates]
-                
-                st.sidebar.caption("Pilih maksimal 2 kompetitor:")
-                selected_names = st.sidebar.multiselect(
-                    "Kandidat:", 
-                    options=cand_names,
-                    max_selections=2,
-                    label_visibility="collapsed"
+            if st.sidebar.button(f"🔍 Cari Komp {i}", key=f"btn_comp{i}"):
+                if api_key and query_comp:
+                    with st.spinner("Mencari..."):
+                        st.session_state[f'res_comp{i}'] = data_manager.search_channels(query_comp)
+                else:
+                    st.sidebar.warning("Isi API Key & Nama Channel.")
+            
+            if f'res_comp{i}' in st.session_state and st.session_state[f'res_comp{i}']:
+                options = [f"{r['title']}" for r in st.session_state[f'res_comp{i}']]
+                choice = st.sidebar.selectbox(
+                    f"Pilih Hasil Komp {i}:", 
+                    options, 
+                    key=f"comp{i}_select"
                 )
+                idx = options.index(choice)
+                target = st.session_state[f'res_comp{i}'][idx]
+                comp_id = target['channel_id']
+                selected_competitors.append(comp_id)
                 
-                # Ambil ID dari nama yang dipilih
-                for name in selected_names:
-                    for cand in candidates:
-                        if cand['title'] == name:
-                            selected_competitors.append(cand['channel_id'])
-                            break
-            else:
-                st.sidebar.caption("Klik tombol cari untuk melihat rekomendasi.")
-        else:
-            st.sidebar.caption("Pilih Channel Utama dulu.")
-
+                # TAMPILKAN FOTO PROFIL + INFO
+                col1, col2 = st.sidebar.columns([1, 2])
+                with col1:
+                    st.image(target['thumbnail'], width=80)
+                with col2:
+                    st.caption(f"**{target['title']}**")
+                
+                # KATEGORISASI KOMPETITOR
+                if api_key:
+                    with st.spinner(f"Menganalisis kompetitor {i}..."):
+                        comp_info = data_manager.get_channel_info(comp_id)
+                        if comp_info:
+                            comp_cat = data_manager.categorize_channel(comp_info)
+                            competitor_categories.append(comp_cat)
+                            
+                            # Display Badge
+                            st.sidebar.markdown(
+                                f"<div style='background-color:{comp_cat['color']}20; "
+                                f"padding:8px; border-radius:8px; border:1px solid {comp_cat['color']}; "
+                                f"text-align:center; margin:5px 0;'>"
+                                f"<strong style='color:{comp_cat['color']}'>{comp_cat['category']}</strong><br>"
+                                f"<small>{comp_cat['subs']:,} subscribers</small>"
+                                f"</div>",
+                                unsafe_allow_html=True
+                            )
+            
+            if i < 2:
+                st.sidebar.divider()
+        
+        # Simpan ke session state
+        st.session_state['competitor_categories'] = competitor_categories
         st.sidebar.divider()
 #===========================================================
 #4. BOBOT
@@ -132,7 +189,7 @@ class UserInterface:
         st.sidebar.progress(min(data_manager.used_quota/10000, 1.0))
 
         return api_key, selected_channel_id, selected_competitors, {'views': w_v, 'likes': w_l, 'comments': w_c, 'er': w_e}
-
+#===========================================================
     def render_overview(self, channel_info, df):
         st.markdown("### 📊 Overview Channel")
         niche = channel_info.get('niche_detected', 'Umum')
@@ -150,7 +207,148 @@ class UserInterface:
         c3.metric("Rata-rata Views", f"{df['view_count'].mean():,.0f}")
         c4.metric("Rata-rata ER", f"{df['engagement_rate'].mean():.2f}%")
         st.divider()
-
+#===========================================================
+    def render_category_comparison(self, main_cat, comp_cats):
+        """Tampilkan perbandingan kategori channel"""
+        st.markdown("### 🎯 Analisis Positioning & Strategi")
+        
+        # Comparison Cards
+        cols = st.columns(len(comp_cats) + 1)
+        
+        # Card Channel Utama
+        with cols[0]:
+            st.markdown(f"""
+            <div style='background-color:{main_cat['color']}10; 
+                        border:2px solid {main_cat['color']}; 
+                        padding:20px; border-radius:15px; height:100%;'>
+                <h4 style='color:{main_cat['color']}; text-align:center;'>
+                    📺 CHANNEL UTAMA
+                </h4>
+                <div style='text-align:center; margin:15px 0;'>
+                    <h2 style='color:{main_cat['color']};'>{main_cat['category']}</h2>
+                    <p style='font-size:24px; font-weight:bold;'>{main_cat['subs']:,}</p>
+                    <p style='color:#666;'>subscribers</p>
+                </div>
+                <hr>
+                <p><strong>🎯 Target:</strong> {main_cat['benchmark']['subs_target']}</p>
+                <p><strong>🔍 Focus:</strong> {main_cat['benchmark']['focus']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Cards Kompetitor
+        for i, comp_cat in enumerate(comp_cats):
+            with cols[i + 1]:
+                st.markdown(f"""
+                <div style='background-color:{comp_cat['color']}10; 
+                            border:2px solid {comp_cat['color']}; 
+                            padding:20px; border-radius:15px; height:100%;'>
+                    <h4 style='color:{comp_cat['color']}; text-align:center;'>
+                        🎭 KOMPETITOR {i+1}
+                    </h4>
+                    <div style='text-align:center; margin:15px 0;'>
+                        <h2 style='color:{comp_cat['color']};'>{comp_cat['category']}</h2>
+                        <p style='font-size:24px; font-weight:bold;'>{comp_cat['subs']:,}</p>
+                        <p style='color:#666;'>subscribers</p>
+                    </div>
+                    <hr>
+                    <p><strong>🎯 Target:</strong> {comp_cat['benchmark']['subs_target']}</p>
+                    <p><strong>🔍 Focus:</strong> {comp_cat['benchmark']['focus']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.divider()
+        
+        # Strategic Insights
+        st.markdown("#### 💡 Strategic Insights & Rekomendasi")
+        
+        main_level = main_cat['level']
+        
+        # Analisis Gap
+        if comp_cats:
+            comp_levels = [c['level'] for c in comp_cats]
+            
+            insights = []
+            
+            # Insight 1: Positioning
+            if all(cl == main_level for cl in comp_levels):
+                insights.append({
+                    'icon': '⚖️',
+                    'title': 'Kompetisi Seimbang',
+                    'desc': f"Semua channel berada di level **{main_cat['category']}**. "
+                            f"Fokus pada diferensiasi konten dan engagement untuk unggul."
+                })
+            elif any(cl != main_level for cl in comp_levels):
+                higher = [c for c in comp_cats if c['subs'] > main_cat['subs']]
+                lower = [c for c in comp_cats if c['subs'] < main_cat['subs']]
+                
+                if higher:
+                    insights.append({
+                        'icon': '📈',
+                        'title': 'Learning dari yang Lebih Besar',
+                        'desc': f"Ada kompetitor di level lebih tinggi. **Pelajari strategi mereka**: "
+                                f"jenis konten, frekuensi upload, engagement tactics, dan kolaborasi."
+                    })
+                
+                if lower:
+                    insights.append({
+                        'icon': '🎓',
+                        'title': 'Peluang Dominasi',
+                        'desc': f"Anda lebih besar dari beberapa kompetitor. Manfaatkan untuk: "
+                                f"authority positioning, mentorship content, dan community building."
+                    })
+            
+            # Insight 2: Focus Area
+            insights.append({
+                'icon': '🎯',
+                'title': 'Area Fokus Utama',
+                'desc': main_cat['benchmark']['focus']
+            })
+            
+            # Insight 3: Challenge
+            insights.append({
+                'icon': '⚠️',
+                'title': 'Challenge yang Harus Diatasi',
+                'desc': main_cat['benchmark']['challenge']
+            })
+            
+            # Insight 4: Strategy
+            insights.append({
+                'icon': '🚀',
+                'title': 'Strategi Rekomendasi',
+                'desc': main_cat['benchmark']['strategy']
+            })
+            
+            # Display Insights
+            for insight in insights:
+                st.info(f"{insight['icon']} **{insight['title']}**\n\n{insight['desc']}")
+        
+        st.divider()
+        
+        # Performance Benchmark Table
+        st.markdown("#### 📊 Performance Benchmark")
+        
+        benchmark_data = [{
+            'Channel': '📺 UTAMA',
+            'Kategori': main_cat['category'],
+            'Subscribers': f"{main_cat['subs']:,}",
+            'Total Video': f"{main_cat['total_videos']:,}",
+            'Avg Views/Video': f"{main_cat['avg_views']:,.0f}",
+            'Views per Sub': f"{(main_cat['avg_views'] / main_cat['subs'] * 100):.1f}%"
+        }]
+        
+        for i, comp_cat in enumerate(comp_cats):
+            benchmark_data.append({
+                'Channel': f'🎭 KOMP {i+1}',
+                'Kategori': comp_cat['category'],
+                'Subscribers': f"{comp_cat['subs']:,}",
+                'Total Video': f"{comp_cat['total_videos']:,}",
+                'Avg Views/Video': f"{comp_cat['avg_views']:,.0f}",
+                'Views per Sub': f"{(comp_cat['avg_views'] / comp_cat['subs'] * 100):.1f}%"
+            })
+        
+        df_benchmark = pd.DataFrame(benchmark_data)
+        st.dataframe(df_benchmark, use_container_width=True, hide_index=True)
+#===========================================================
     def render_comparison(self, main_info, main_df, comp_data_list):
         if not comp_data_list: return
         st.markdown("### ⚔️ Analisis Komparasi")
@@ -171,13 +369,13 @@ class UserInterface:
                 "Subs": int(c_info['statistics']['subscriberCount']),
                 "Status": "Kompetitor"
             })
-        
+ #===========================================================       
         df_comp = pd.DataFrame(comp_summary)
         c1, c2 = st.columns(2)
         with c1: st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg Views", color="Status", title="Perbandingan Views"), use_container_width=True)
         with c2: st.plotly_chart(px.bar(df_comp, x="Nama Channel", y="Avg ER (%)", color="Status", title="Perbandingan Engagement"), use_container_width=True)
         st.divider()
-
+#===========================================================
     def render_ranking_table(self, df_result):
         st.markdown("### 🏆 Hasil Pemeringkatan (SAW)")
         with st.expander("🔍 Filter Data"):
@@ -214,7 +412,7 @@ class UserInterface:
             if 'published_at' in temp.columns: temp['published_at'] = temp['published_at'].dt.tz_localize(None)
             temp.to_excel(writer, index=False)
         st.download_button("💾 Download Excel", output.getvalue(), "saw_result.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+#===========================================================
     def render_analytics(self, df):
         st.markdown("### 📈 Dashboard Analitik & Strategi")
         best = df.iloc[0]
@@ -275,4 +473,5 @@ class UserInterface:
         with t5:
             desc = df[['view_count', 'like_count', 'engagement_rate']].describe()
             st.dataframe(desc.style.format("{:.2f}"))
+
 
