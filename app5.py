@@ -77,11 +77,23 @@ def main():
 # D. OUTPUT
 #===============================================
         ui.render_overview(main_info, df_final)
+        
+        if 'main_category' in st.session_state:
+            comp_cats = st.session_state.get('competitor_categories', [])
+            if comp_cats:
+                ui.render_category_comparison(
+                    st.session_state['main_category'], 
+                    comp_cats
+                )
+        
         if comp_data_list:
             ui.render_comparison(main_info, df_processed, comp_data_list)
+        
         ui.render_ranking_table(df_final)
         ui.render_analytics(df_final)
+#===============================================  
 
 if __name__ == "__main__":
     main()
+
 
