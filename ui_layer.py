@@ -369,58 +369,102 @@ class UserInterface:
 
     def render_analytics(self, df):
         st.markdown("### 📈 Dashboard Analitik & Strategi")
-        best = df.iloc[0]
-        best_day = df.groupby('day_name')['view_count'].mean().idxmax()
         
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            st.markdown(f"<div class='video-card'><div class='video-label'>Video Terbaik</div><div class='video-title'>{best['title']}</div></div>", unsafe_allow_html=True)
-        m2.metric("Skor SAW Tertinggi", f"{best['preference_score']:.4f}")
-        m3.metric("Views Video Terbaik", f"{best['view_count']:,}")
+        # --- Bagian Atas: Video Terbaik ---
+        if not df.empty:
+            best = df.iloc[0]
+            m1, m2, m3 = st.columns(3)
+            with m1:
+                st.markdown(f"<div class='video-card'><div class='video-label'>Video Terbaik (Rank 1)</div><div class='video-title'>{best['title']}</div></div>", unsafe_allow_html=True)
+            m2.metric("Skor SAW", f"{best['preference_score']:.4f}")
+            m3.metric("Views", f"{best['view_count']:,}")
+        
         st.divider()
 
-        t1, t2, t3, t4, t5 = st.tabs(["Peta Strategi", "Top 5", "Korelasi", "Word Cloud", "Statistik"])
+        t1, t2, t3, t4, t5 = st.tabs(["Peta Strategi", "Top 5", "Korelasi", "🔥 Power Keywords", "Statistik"])
+        
         days_indo = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
         
+        # TAB 1: Waktu Upload
         with t1:
             st.markdown("#### Analisis Waktu Upload")
             c1, c2 = st.columns(2)
             with c1:
                 df_hari = df.groupby('day_name')['view_count'].mean().reindex(days_indo).reset_index()
-                st.plotly_chart(px.line(df_hari, x='day_name', y='view_count', markers=True, title="Tren Harian"), use_container_width=True)
+                st.plotly_chart(px.line(df_hari, x='day_name', y='view_count', markers=True, title="Rata-rata Views per Hari"), use_container_width=True)
             with c2:
                 hmap = df.pivot_table(index='day_name', columns='hour', values='view_count', aggfunc='mean').fillna(0).reindex(days_indo)
-                st.plotly_chart(px.imshow(hmap, labels=dict(x="Jam", y="Hari"), color_continuous_scale='RdYlGn', title="Heatmap"), use_container_width=True)
-            
-            best_hour = df.groupby('hour')['view_count'].mean().idxmax()
-            st.info(f"💡 **Insight Otomatis:** Berdasarkan data historis, hari **{best_day}** memiliki rata-rata views tertinggi. Secara spesifik, jam **{best_hour}:00 WIB** adalah waktu yang paling potensial menarik penonton (Heatmap Hijau).")
+                st.plotly_chart(px.imshow(hmap, labels=dict(x="Jam", y="Hari"), color_continuous_scale='RdYlGn', title="Heatmap Waktu Emas"), use_container_width=True)
 
+        # TAB 2: Top 5 Video
         with t2:
-            st.plotly_chart(px.bar(df.head(5), x='preference_score', y='title', orientation='h', title="Top 5 Video SAW"), use_container_width=True)
+            st.plotly_chart(px.bar(df.head(5), x='preference_score', y='title', orientation='h', title="Top 5 Video (Skor SAW Tertinggi)"), use_container_width=True)
             
+        # TAB 3: Korelasi
         with t3:
             corr = df['view_count'].corr(df['engagement_rate'])
-            st.plotly_chart(px.scatter(df, x='view_count', y='engagement_rate', size='preference_score', title=f"Korelasi: {corr:.2f}"), use_container_width=True)
-            if corr > 0.5: 
-                msg = "Terdapat **korelasi positif kuat**."
-            elif corr < -0.5: 
-                msg = "Terdapat **korelasi negatif**."
-            else: 
-                msg = "Korelasi lemah/acak."
-            st.info(f"💡 **Analisis Statistik:** {msg}")
+            st.plotly_chart(px.scatter(df, x='view_count', y='engagement_rate', size='preference_score', title=f"Korelasi Views vs ER: {corr:.2f}"), use_container_width=True)
+            if corr > 0.5: msg = "Positif Kuat: Semakin banyak views, interaksi juga makin ramai."
+            elif corr < -0.5: msg = "Negatif: Views tinggi tapi penonton pasif (jarang like/komen)."
+            else: msg = "Acak: Tidak ada pola jelas antara views dan interaksi."
+            st.info(f"💡 **Analisis:** {msg}")
 
+        # TAB 4: POWER KEYWORDS (PENGGANTI WORD CLOUD)
         with t4:
-            txt = " ".join(df.head(30)['title'].tolist())
-            clean = " ".join(re.findall(r"[a-zA-Z0-9]+", txt))
-            if clean:
-                wc = WordCloud(width=800, height=400, background_color='white').generate(clean)
-                fig, ax = plt.subplots()
-                ax.imshow(wc, interpolation='bilinear')
-                ax.axis('off')
-                st.pyplot(fig)
-            else: 
-                st.warning("Data teks kurang.")
+            st.markdown("#### Kata Kunci Paling 'Menjual'")
+            st.caption("Analisis rata-rata views berdasarkan kata yang muncul di judul.")
+            
+            # 1. Stopwords sederhana (Kata hubung yang tidak bermakna)
+            stopwords = ['di', 'dan', 'ke', 'dari', 'yang', 'ini', 'itu', 'aku', 'saya', 'kamu', 'kita', 'video', 'vlog', 'hari', 'bikin', 'cara', 'with', 'the', 'in', 'on', 'of', 'for', 'to', 'a', 'is', 'eps', 'part', 'full', 'review', 'indonesia', '2024', '2025', '2026', 'episode']
+            
+            # 2. Proses Tokenisasi & Hitung Views
+            keyword_stats = {}
+            
+            for index, row in df.iterrows():
+                # Bersihkan judul: huruf kecil, hapus simbol
+                clean_title = re.sub(r"[^a-zA-Z0-9\s]", "", str(row['title'])).lower()
+                words = clean_title.split()
+                
+                views = row['view_count']
+                
+                for word in words:
+                    if word not in stopwords and len(word) > 2: # Filter kata pendek
+                        if word not in keyword_stats:
+                            keyword_stats[word] = {'total_views': 0, 'count': 0}
+                        keyword_stats[word]['total_views'] += views
+                        keyword_stats[word]['count'] += 1
+            
+            # 3. Hitung Rata-rata
+            final_keywords = []
+            for word, data in keyword_stats.items():
+                if data['count'] >= 2: # Hanya kata yang muncul minimal 2 kali agar valid
+                    avg_view = data['total_views'] / data['count']
+                    final_keywords.append({'Keyword': word, 'Avg Views': avg_view, 'Freq': data['count']})
+            
+            # 4. Buat DataFrame & Visualisasi
+            if final_keywords:
+                df_kw = pd.DataFrame(final_keywords)
+                df_kw = df_kw.sort_values(by='Avg Views', ascending=False).head(10) # Ambil Top 10
+                
+                # Bar Chart
+                fig_kw = px.bar(
+                    df_kw, 
+                    x='Avg Views', 
+                    y='Keyword', 
+                    orientation='h',
+                    color='Avg Views',
+                    text='Avg Views',
+                    title="Top 10 Kata Kunci dengan Performa Views Terbaik",
+                    color_continuous_scale='Viridis'
+                )
+                fig_kw.update_traces(texttemplate='%{text:.2s}', textposition='outside')
+                st.plotly_chart(fig_kw, use_container_width=True)
+                
+                st.info("💡 Grafik di atas menunjukkan kata-kata yang **secara statistik** membawa views lebih tinggi ketika digunakan dalam judul.")
+            else:
+                st.warning("Belum cukup data kata yang berulang untuk dianalisis (Minimal kata muncul 2x).")
 
+        # TAB 5: Statistik Dasar
         with t5:
             desc = df[['view_count', 'like_count', 'engagement_rate']].describe()
             st.dataframe(desc.style.format("{:.2f}"))
