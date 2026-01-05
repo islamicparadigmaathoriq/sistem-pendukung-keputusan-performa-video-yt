@@ -74,18 +74,13 @@ class UserInterface:
     def render_sidebar(self, data_manager):
         st.sidebar.header("⚙️ Konfigurasi Sistem")
         
-        # 1. INPUT API KEY
-        api_key = st.sidebar.text_input("1. Masukkan YouTube API Key 👉 **Belum punya API Key?** 1. Buka **[Google Cloud Console](https://console.cloud.google.com/)**.
-        2. Buat Project Baru.
-        3. Cari **"YouTube Data API v3"** & Enable.
-        4. Masuk menu **Credentials** → Create API Key.", type="password")
-
+        api_key = st.sidebar.text_input("1. Masukkan YouTube API Key", type="password")
         if api_key:
             data_manager.update_key(api_key)
         
         st.sidebar.divider()
 
-        # 2. Channel Utama
+        # Channel Utama
         st.sidebar.markdown("### 2. Channel Utama")
         query = st.sidebar.text_input("Cari Channel Utama", placeholder="Contoh: GadgetIn")
         if st.sidebar.button("🔍 Cari Utama"):
@@ -112,14 +107,14 @@ class UserInterface:
 
         st.sidebar.divider()
 
-        # 3. Kompetitor
+        # Kompetitor
         st.sidebar.markdown("### 3. Komparasi (Opsional)")
         comp1_id = self._render_competitor_selector(1, data_manager)
         comp2_id = self._render_competitor_selector(2, data_manager)
         
         st.sidebar.divider()
         
-        # 4. Bobot
+        # Bobot
         st.sidebar.header("⚖️ Bobot SAW")
         w_views = st.sidebar.slider("Views (C1)", 0.0, 1.0, 0.30)
         w_likes = st.sidebar.slider("Likes (C2)", 0.0, 1.0, 0.25)
@@ -132,15 +127,16 @@ class UserInterface:
         else:
             st.sidebar.success("✅ Bobot Valid")
         
-        # --- MONITOR KUOTA API ---
+        # --- FITUR BARU: MONITOR KUOTA API ---
         st.sidebar.divider()
         st.sidebar.markdown("### 📊 Monitor Kuota API")
         used = data_manager.used_quota
-        limit_daily = 10000 
+        limit_daily = 10000 # Batas gratis harian standar
         
         st.sidebar.caption(f"Estimasi Penggunaan Sesi Ini: **{used}** units")
         st.sidebar.progress(min(used / limit_daily, 1.0))
-        st.sidebar.caption("*Catatan: Ini estimasi sesi. Cek Google Console untuk sisa kuota asli.*")
+        st.sidebar.caption("*Catatan: Ini estimasi sesi.*")
+        # -------------------------------------
 
         return api_key, selected_channel_id, [comp1_id, comp2_id], {'views': w_views, 'likes': w_likes, 'comments': w_comments, 'er': w_er}
 
@@ -238,7 +234,7 @@ class UserInterface:
         # Cari Insight Utama
         best_day = df.groupby('day_name')['view_count'].mean().idxmax()
         
-        # HTML CARD UNTUK JUDUL
+        # --- FITUR BARU: CUSTOM HTML CARD UNTUK JUDUL ---
         m1, m2, m3 = st.columns(3)
         with m1:
             st.markdown(f"""
@@ -253,22 +249,26 @@ class UserInterface:
 
         t1, t2, t3, t4, t5 = st.tabs(["Peta Strategi", "Top 5", "Korelasi", "Word Cloud", "Statistik"])
         
-        # SORTING HARI INDONESIA
+        # --- [PERBAIKAN 3: SORTING HARI INDONESIA] ---
         days_indo = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
-        
+        # ---------------------------------------------
+
         with t1:
             st.markdown("#### Analisis Waktu Upload")
             c1, c2 = st.columns(2)
             
             with c1:
                 st.markdown("**1. Tren Harian**")
+                # Reindex menggunakan nama hari Indonesia
                 df_hari = df.groupby('day_name')['view_count'].mean().reindex(days_indo).reset_index()
                 st.plotly_chart(px.line(df_hari, x='day_name', y='view_count', markers=True, title="Tren Harian"), use_container_width=True)
             with c2:
                 st.markdown("**2. Heatmap Zona Waktu**")
+                # Reindex heatmap juga
                 hmap = df.pivot_table(index='day_name', columns='hour', values='view_count', aggfunc='mean').fillna(0).reindex(days_indo)
                 st.plotly_chart(px.imshow(hmap, labels=dict(x="Jam", y="Hari"), color_continuous_scale='RdYlGn', title="Heatmap"), use_container_width=True)
 
+            # AUTOMATIC INSIGHT TEKS
             best_hour = df.groupby('hour')['view_count'].mean().idxmax()
             st.info(f"""
             💡 **Insight Otomatis:**
@@ -313,4 +313,3 @@ class UserInterface:
             - Rata-rata Engagement Rate channel ini adalah **{avg_er:.2f}%**.
             - Standar deviasi views sebesar **{std_views:,.0f}**, menunjukkan {'variasi performa video sangat tinggi (tidak stabil)' if std_views > desc.loc['mean','view_count'] else 'performa video cukup konsisten'}.
             """)
-
