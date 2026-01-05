@@ -3,7 +3,6 @@ from data_layer import DataManager
 from model_layer import SAWModel
 from ui_layer import UserInterface
 
-# Konfigurasi Halaman (WAJIB di baris paling atas)
 st.set_page_config(page_title="SPK Evaluasi Konten YouTube", layout="wide", page_icon="🎥")
 
 def main():
@@ -12,16 +11,14 @@ def main():
     st.title("🎥 SPK Evaluasi Performa Konten YouTube (Metode SAW)")
     st.markdown("Sistem Pendukung Keputusan berbasis Web untuk Konten Kreator")
     
-    # --- 1. INISIALISASI DATA MANAGER ---
     if 'dm' not in st.session_state:
         st.session_state['dm'] = DataManager(None)
     
     dm = st.session_state['dm']
     
-    # --- 2. RENDER SIDEBAR ---
+    # 2. RENDER SIDEBAR (Sekarang return list kompetitor otomatis)
     api_key, channel_id, competitors, weights = ui.render_sidebar(dm)
     
-    # --- 3. EKSEKUSI UTAMA ---
     if st.sidebar.button("🚀 Analisis Channel", type="primary"):
         if not api_key:
             st.error("⚠️ Mohon masukkan YouTube API Key di Sidebar.")
@@ -30,14 +27,13 @@ def main():
             st.error("⚠️ Mohon Cari dan Pilih Channel Utama terlebih dahulu.")
             return
 
-        # --- A. AMBIL DATA CHANNEL UTAMA ---
+        # A. CHANNEL UTAMA
         with st.spinner("Mengambil data Channel Utama..."):
             main_info = dm.get_channel_info(channel_id)
-            
             if not main_info:
-                st.error("Gagal mengambil data channel utama. Periksa API Key atau Koneksi.")
+                st.error("Gagal mengambil data channel utama.")
                 return
-                
+            
             uploads_id = main_info['contentDetails']['relatedPlaylists']['uploads']
             df_videos = dm.fetch_videos(uploads_id)
 
@@ -45,13 +41,13 @@ def main():
             st.warning("Tidak ada video publik ditemukan pada channel ini.")
             return
 
-        # --- B. AMBIL DATA KOMPETITOR (JIKA ADA) ---
+        # B. KOMPETITOR (OTOMATIS DARI UI)
         comp_data_list = []
         if any(competitors):
-            with st.status("Sedang menganalisis kompetitor...", expanded=True):
+            with st.status("Sedang menganalisis kompetitor terpilih...", expanded=True):
                 for i, comp_id in enumerate(competitors):
                     if comp_id: 
-                        st.write(f"Mengambil data Kompetitor {i+1} ({comp_id})...")
+                        st.write(f"Mengambil data Kompetitor {i+1}...")
                         c_info = dm.get_channel_info(comp_id)
                         if c_info:
                             c_up_id = c_info['contentDetails']['relatedPlaylists']['uploads']
@@ -60,16 +56,16 @@ def main():
                                 c_df['engagement_rate'] = ((c_df['like_count'] + c_df['comment_count']) / c_df['view_count'] * 100).fillna(0)
                                 comp_data_list.append((c_info, c_df))
                         else:
-                            st.warning(f"Gagal menemukan ID Kompetitor: {comp_id}")
+                            st.warning(f"Gagal mengambil data kompetitor ID: {comp_id}")
 
-        # --- C. PROSES SAW (HANYA UNTUK CHANNEL UTAMA) ---
+        # C. PROSES SAW
         model = SAWModel(weights)
         df_processed = model.calculate_engagement_rate(df_videos)
         df_normalized = model.normalize_data(df_processed)
         df_final = model.calculate_preference(df_normalized)
         df_final['Rank'] = df_final.index + 1
 
-        # --- D. RENDER OUTPUT ---
+        # D. OUTPUT
         ui.render_overview(main_info, df_final)
         if comp_data_list:
             ui.render_comparison(main_info, df_processed, comp_data_list)
