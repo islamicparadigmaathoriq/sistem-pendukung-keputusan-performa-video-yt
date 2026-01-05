@@ -81,7 +81,6 @@ class UserInterface:
             4. Masuk ke menu **Credentials** -> **Create Credentials** -> **API Key**.
             5. Copy API Key tersebut dan tempel di bawah ini.
             """)
-        
         api_key = st.sidebar.text_input("1. Masukkan YouTube API Key", type="password")
         if api_key:
             data_manager.update_key(api_key)
@@ -135,11 +134,11 @@ class UserInterface:
         else:
             st.sidebar.success("✅ Bobot Valid")
         
-        # --- FITUR: MONITOR KUOTA API ---
+        # --- FITUR BARU: MONITOR KUOTA API ---
         st.sidebar.divider()
         st.sidebar.markdown("### 📊 Monitor Kuota API")
         used = data_manager.used_quota
-        limit_daily = 10000 
+        limit_daily = 10000 # Batas gratis harian standar
         
         st.sidebar.caption(f"Estimasi Penggunaan Sesi Ini: **{used}** units")
         st.sidebar.progress(min(used / limit_daily, 1.0))
@@ -242,6 +241,7 @@ class UserInterface:
         # Cari Insight Utama
         best_day = df.groupby('day_name')['view_count'].mean().idxmax()
         
+        # --- FITUR BARU: CUSTOM HTML CARD UNTUK JUDUL ---
         m1, m2, m3 = st.columns(3)
         with m1:
             st.markdown(f"""
@@ -256,9 +256,9 @@ class UserInterface:
 
         t1, t2, t3, t4, t5 = st.tabs(["Peta Strategi", "Top 5", "Korelasi", "Word Cloud", "Statistik"])
         
-        # --- [FIX: SORTING HARI INDONESIA] ---
+        # --- [PERBAIKAN 3: SORTING HARI INDONESIA] ---
         days_indo = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
-        # -------------------------------------
+        # ---------------------------------------------
 
         with t1:
             st.markdown("#### Analisis Waktu Upload")
@@ -266,15 +266,16 @@ class UserInterface:
             
             with c1:
                 st.markdown("**1. Tren Harian**")
-                # Reindex pakai nama hari Indonesia
+                # Reindex menggunakan nama hari Indonesia
                 df_hari = df.groupby('day_name')['view_count'].mean().reindex(days_indo).reset_index()
                 st.plotly_chart(px.line(df_hari, x='day_name', y='view_count', markers=True, title="Tren Harian"), use_container_width=True)
             with c2:
                 st.markdown("**2. Heatmap Zona Waktu**")
-                # Reindex pakai nama hari Indonesia
+                # Reindex heatmap juga
                 hmap = df.pivot_table(index='day_name', columns='hour', values='view_count', aggfunc='mean').fillna(0).reindex(days_indo)
                 st.plotly_chart(px.imshow(hmap, labels=dict(x="Jam", y="Hari"), color_continuous_scale='RdYlGn', title="Heatmap"), use_container_width=True)
 
+            # AUTOMATIC INSIGHT TEKS
             best_hour = df.groupby('hour')['view_count'].mean().idxmax()
             st.info(f"""
             💡 **Insight Otomatis:**
@@ -319,4 +320,3 @@ class UserInterface:
             - Rata-rata Engagement Rate channel ini adalah **{avg_er:.2f}%**.
             - Standar deviasi views sebesar **{std_views:,.0f}**, menunjukkan {'variasi performa video sangat tinggi (tidak stabil)' if std_views > desc.loc['mean','view_count'] else 'performa video cukup konsisten'}.
             """)
-
