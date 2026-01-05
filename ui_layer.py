@@ -73,8 +73,6 @@ class UserInterface:
 
     def render_sidebar(self, data_manager):
         st.sidebar.header("⚙️ Konfigurasi Sistem")
-        
-        # --- [FITUR: PANDUAN API KEY] ---
         with st.sidebar.expander("ℹ️ Cara dapatkan API Key?"):
             st.caption("""
             1. Buka [Google Cloud Console](https://console.cloud.google.com/).
@@ -83,7 +81,6 @@ class UserInterface:
             4. Masuk ke menu **Credentials** -> **Create Credentials** -> **API Key**.
             5. Copy API Key tersebut dan tempel di bawah ini.
             """)
-        # --------------------------------
         
         api_key = st.sidebar.text_input("1. Masukkan YouTube API Key", type="password")
         if api_key:
@@ -322,3 +319,4 @@ class UserInterface:
             - Rata-rata Engagement Rate channel ini adalah **{avg_er:.2f}%**.
             - Standar deviasi views sebesar **{std_views:,.0f}**, menunjukkan {'variasi performa video sangat tinggi (tidak stabil)' if std_views > desc.loc['mean','view_count'] else 'performa video cukup konsisten'}.
             """)
+
